@@ -22,7 +22,7 @@ Bootsplash stuff? (later, it's not important enough to look at now)
 [Standard] ArchITG Configuration stuff:
 1.) Packages that need to be installed, and can be via pacstrap:
 
-# pastrap /mnt base base-devel alsa-utils clang expac gdb 
+# pacstrap /mnt base base-devel alsa-utils clang expac gdb 
 grublib32-alsa-lib lib32-curl lib32-gcc-libs lib32-glu 
 lib32-libjpeg-turbo lib32-libogg lib32-libpng12 lib32-libvorbis 
 lib32-libx11 lib32-libxext lib32-libxrandr linux-headers llvm lua-socket 
@@ -82,7 +82,7 @@ List of configuration steps for [MiniMaid] w/ ArchITG:
 
 1.) Udev Rule
 [/etc/udev/rules.d/20-minimaid.rules]:
-ACTION=="add", SUBSYSTEMS=="usb", ATTR{idVendor}=="beef", 
+ACTION=="add", ATTR{idVendor}=="beef", 
 GROUP="minimaid", OWNER="itg", MODE="0660"
 
 2.) Static.ini input stuff:
@@ -111,7 +111,7 @@ This section still needs attention!
 Create piuio group and add the itg user to it:
 groupadd piuio
 gpasswd -aG piuioio itg
-echo 'ACTION=="add", SUBSYSTEMS=="usb", ATTR{idVendor}=="0547", 
+echo 'ACTION=="add", ATTR{idVendor}=="0547", 
 GROUP="piuio", OWNER="itg", MODE="0660"' > 
 /etc/udev/rules.d/20-piuio.rules
 
@@ -212,3 +212,8 @@ For the medium age cards, the ATi driver wins (go figure)
 This situation could change frequently, suggest using radeon driver for 
 all cards except those which don't work well with it, fglrx for those 
 cases.
+
+
+Can potentially use Canonical's "Jockey" app, it has a CLI mode and has
+been ported to Arch, this allows us the ability to detect proper drivers
+on the fly.
