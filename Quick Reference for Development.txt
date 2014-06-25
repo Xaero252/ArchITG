@@ -1,0 +1,214 @@
+For now, this is a copy & paste job of the stuff I've figured out while 
+tinkering to try and get a stable working image for my own personal 
+cabinet, a lot of this needs to be integrated and automated for the 
+installer to work:
+
+ArchITG devlog; stuff I've tinkered with and will need to finish the 
+install media
+
+Todo:
+Need to get Linux-rt working.
+Figure out Memory card stuff
+Finish ITGIO and PIUIO sections
+Work on J-Pac script
+work on hardware detection
+Finish ATi and Nvidia sections (might need a script to differentiate 
+between driver versions for legacy hardware)
+Should probably insert user creation and syslinux installation for 
+fastest booting (instead of grub)
+Bootsplash stuff? (later, it's not important enough to look at now)
+
+============================================================================================================================================
+[Standard] ArchITG Configuration stuff:
+1.) Packages that need to be installed, and can be via pacstrap:
+
+# pastrap /mnt base base-devel alsa-utils clang expac gdb 
+grublib32-alsa-lib lib32-curl lib32-gcc-libs lib32-glu 
+lib32-libjpeg-turbo lib32-libogg lib32-libpng12 lib32-libvorbis 
+lib32-libx11 lib32-libxext lib32-libxrandr linux-headers llvm lua-socket 
+networkmanager ntp openssh unzip wget xorg-xinit xorg-xrandr yajl
+
+2.) Aur Packages:
+
+# wget 
+https://aur.archlinux.org/packages/pa/package-query/package-query.tar.gz
+# wget https://aur.archlinux.org/packages/ya/yaourt/yaourt.tar.gz
+# tar zxvf yaourt.tar.gz
+# tar zxvf package-query.tar.gz
+# cd package-query && makepkg -i --asroot
+# cd ../yaourt && makepkg -i --asroot
+# yaourt -S lib32-libmad lib32-libusb-compat
+
+3.) X Init Script
+[~/.xinitrc]
+cd ~/gamedata
+xset -r #this shit fixes loopy repeating input if it arises
+./openitg > logging.txt 2>&1
+
+4.) Bash Profile
+[~/.bash_profile]
+
+#
+# ~/.bash_profile
+#
+
+[[ -f ~/.bashrc ]] && . ~/.bashrc
+[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]]
+[[ $(fgconsole 2>/dev/null) == 1 ]] && exec startx -- vt1 &> /dev/null
+
+
+5.) Setup Autologin for (ge)tty1:
+
+# cp /usr/lib/systemd/system/getty@.service 
+/etc/systemd/system/autologin@.service
+# ln -s /etc/systemd/system/autologin@.service 
+/etc/systemd/system/getty.target.wants/getty@tty1.service
+# sed -i "s/ExecStart=.*/ExecStart=-\/sbin\/agetty -a USERNAME %I 
+38400/g" /etc/systemd/system/autologin\@.service
+
+6.) Enable services:
+
+#systemctl enable sshd NetworkManager
+
+7.) Memory card shit:
+
+TODO
+Figure this shit out, shouldn't be terribly hard, probably a solution 
+right in front of your eyes, too.
+
+============================================================================================================================================
+
+List of configuration steps for [MiniMaid] w/ ArchITG:
+
+1.) Udev Rule
+[/etc/udev/rules.d/20-minimaid.rules]:
+ACTION=="add", SUBSYSTEMS=="usb", ATTR{idVendor}=="beef", 
+GROUP="minimaid", OWNER="itg", MODE="0660"
+
+2.) Static.ini input stuff:
+[gamedata/Data/Static.ini]:
+
+
+[Options]
+...
+...
+InputDrivers=MiniMaid,X11
+LightsDriver=External
+...
+
+3.) openitg-gemini binary retrieval
+
+$ cd ~/gamedata
+$ wget https://dl.dropboxusercontent.com/u/1349893/openitg-gemini
+$ mv openitg-gemini openitg
+
+============================================================================================================================================
+
+List of configuration steps for [PIUIO] w/ ArchITG:
+
+This section still needs attention!
+
+Create piuio group and add the itg user to it:
+groupadd piuio
+gpasswd -aG piuioio itg
+echo 'ACTION=="add", SUBSYSTEMS=="usb", ATTR{idVendor}=="0547", 
+GROUP="piuio", OWNER="itg", MODE="0660"' > 
+/etc/udev/rules.d/20-piuio.rules
+
+
+Mostly, static.ini changes:
+InputDrivers=PIUIO,X11,JoyStick
+
+Monitor stuff?!
+
+============================================================================================================================================
+
+List of configuration steps for [ITGIO] w/ ArchITG:
+
+This section still needs attention!
+
+Create itgio group and add the itg user to it:
+
+groupadd itgio
+gpasswd -aG itgio itg
+echo 'ACTION=="add", SUBSYSTEMS=="usb", ATTR{idVendor}=="07c0", 
+GROUP="itgio", OWNER="itg", MODE="0660"' > 
+/etc/udev/rules.d/20-itgio.rules
+
+
+Mostly, static.ini changes:
+InputDrivers=IOW,X11,JoyStick
+LightsDriver=External
+
+Monitor stuff?!
+
+============================================================================================================================================
+
+List of configuration steps for [nvidia] w/ ArchITG:
+
+TODO
+mostly, though:
+pacstrap nvida nvidia-utils nvidia-libgl lib32-nvidia-libgl
+
+============================================================================================================================================
+
+List of configuration steps for [ati] w/ ArchITG:
+
+TODO
+
+Use the AMD APU board to figure out what is needed here.
+
+============================================================================================================================================
+
+Configuration script for J-Pac:
+
+TODO:
+Basically cycle through all normal cabinet switchology prompting the 
+user:
+Press P1 Menu Left
+Press P1 Start
+Press P1 Menu Right
+etc..
+
+============================================================================================================================================
+
+Auto-Detect script for all hardware:
+
+use lsusb and lspci to grab hardware identification, via grep, and flag 
+results in a architg.conf file on boot, detect VM's so we can use a VM 
+to test all usage scenarios.
+
+To Detect nvidia chips:
+lspci | grep VGA | grep -q NVIDIA ; echo $?
+This returns 0 if there is an nvidia chip; in practice we could run 
+through the possible devices like so:
+
+#minimaid:
+lsusb | grep -q beef:5730 ; echo "minimaid=$?" >> /tmp/hwdetect #####FIX 
+THIS LINE, I did the hardware ID from memory, I think it's backwards. 
+Dyslexia sucks.
+#nvidia:
+lspci | grep VGA | grep -q NVIDIA ; echo "nvidia=$?" >> /tmp/hwdetect
+
+This would help us decide what drivers we need, and how OpenITG needs to 
+be configured, obviously we can allow the user to override settings as 
+they see fit, but the autodetection should be thorough enough...
+Note: We need to differentiate between old nvidia cards and new ones:
+https://wiki.archlinux.org/index.php/NVIDIA#Installing
+
+8 series and newer can use latest nvidia drivers
+6/7 series drops to nvidia-304xx
+5 drops to nvidia-173xx
+rest is nvidia-96xx
+
+It's cumbersome to use grep to compare to a list of nvidia cards and 
+figure out which series driver. There's gotta be a better way.
+
+Similar story for AMD/ATi cards:
+For the bleeding edge cards, the Radeon driver wins
+For the oldest cards the Radeon driver wins
+For the medium age cards, the ATi driver wins (go figure)
+
+This situation could change frequently, suggest using radeon driver for 
+all cards except those which don't work well with it, fglrx for those 
+cases.
